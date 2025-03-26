@@ -1,46 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/env.dart';
 import 'screens/auth_gate.dart';
-import 'screens/booking_history_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/booking_history_screen.dart';
 import 'screens/profile_edit_screen.dart';
+import 'screens/bookings_screen.dart';
 import 'models/user_profile.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase
+  // The app will display mock data if the database is not accessible
   await Supabase.initialize(
-    url: 'https://hkkovrlwlaxgakdnnopc.supabase.co',
+    url: 'https://svfwlvytgaodynvvkngt.supabase.co',
     anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhra292cmx3bGF4Z2FrZG5ub3BjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTYyMDYzNzcsImV4cCI6MjAzMTc4MjM3N30.FJyn4Tp52Jk3sC6OR81K2iwU6bBFoOML6P55UmbX6e4',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2Zndsdnl0Z2FvZHludnZrbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTE1NzUwNTQsImV4cCI6MjAyNzE1MTA1NH0.K3fOVnqm_kn5k8mWZ9s_5pzYAyUe5YU6Ro2ZXV0JwT0',
   );
-
-  // Ensure the database is properly initialized before proceeding
-  try {
-    // Check if the tables exist by querying the information schema
-    final result =
-        await Supabase.instance.client.rpc('check_tables_exist').select();
-
-    print('Database initialization check: $result');
-  } catch (e) {
-    print('Error checking database initialization: $e');
-    // Create the RPC function if it doesn't exist
-    try {
-      await Supabase.instance.client.rpc('create_check_tables_function');
-    } catch (e) {
-      print('Could not create the check function: $e');
-    }
-
-    // Create basic tables if they don't exist
-    try {
-      // Add a simple profiles table if it doesn't exist
-      await Supabase.instance.client.rpc('create_minimal_tables');
-    } catch (e) {
-      print('Could not create minimal tables: $e');
-    }
-  }
 
   runApp(const MyApp());
 }
