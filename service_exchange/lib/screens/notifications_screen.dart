@@ -355,19 +355,36 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     // Navigate based on notification type
     switch (notification.type) {
       case NotificationType.quest:
-        // Navigate to quest details
+        if (notification.questId != null) {
+          Navigator.pushNamed(
+            context,
+            '/quest-details',
+            arguments: {'questId': notification.questId},
+          );
+        }
         break;
       case NotificationType.service:
-        // Navigate to service details
+        if (notification.serviceId != null) {
+          Navigator.pushNamed(
+            context,
+            '/service-details',
+            arguments: {'serviceId': notification.serviceId},
+          );
+        }
         break;
       case NotificationType.social:
-        // Navigate to user profile
+        if (notification.userId != null) {
+          Navigator.pushNamed(
+            context,
+            '/user-profile',
+            arguments: {'userId': notification.userId},
+          );
+        }
         break;
     }
   }
 
   void _handleNotificationAction(NotificationItem notification) {
-    // Handle action button tap
     _handleNotificationTap(notification);
   }
 }
