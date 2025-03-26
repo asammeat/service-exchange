@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/env.dart';
 import 'screens/auth_gate.dart';
+import 'screens/booking_history_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,13 +22,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ServiceExchange',
+      title: 'Service Exchange',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const AuthGate(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const AuthGate(),
+        '/home': (context) => const HomeScreen(),
+        '/bookings': (context) => const BookingHistoryScreen(),
+      },
     );
   }
 }

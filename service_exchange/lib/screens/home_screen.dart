@@ -9,6 +9,8 @@ import '../models/service_location.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
+import 'service_detail_screen.dart';
+import 'booking_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -114,9 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Filter locations based on current filter type
     final filteredLocations = _serviceLocations.where((location) {
       if (_mapFilterType == 'All') return true;
-      if (_mapFilterType == 'Quests') return location.serviceType == 'quest';
-      if (_mapFilterType == 'Services')
-        return location.serviceType == 'service';
+      if (_mapFilterType == 'Quests') return location.isQuest;
+      if (_mapFilterType == 'Services') return !location.isQuest;
       if (_mapFilterType == 'Nearby' && _currentLocation != null) {
         // Calculate distance using Haversine formula (more accurate)
         final lat1 = location.latitude;
@@ -153,12 +154,12 @@ class _HomeScreenState extends State<HomeScreen> {
         position: location.latLng,
         infoWindow: InfoWindow(
           title: location.title,
-          snippet: location.serviceType == 'quest'
+          snippet: location.isQuest
               ? 'Quest'
               : 'Service: ${location.coinPrice} coins',
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          location.serviceType == 'quest'
+          location.isQuest
               ? BitmapDescriptor.hueBlue
               : BitmapDescriptor.hueViolet,
         ),
@@ -216,6 +217,18 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         centerTitle: false,
         actions: [
+          // Bookings history button
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.black87),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const BookingHistoryScreen()),
+              );
+            },
+            tooltip: 'My Bookings',
+          ),
           // Search button
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black87),
@@ -489,43 +502,46 @@ class _HomeScreenState extends State<HomeScreen> {
         // Quest card
         _buildQuestCard(
           organizationName: 'EcoGuardians',
-          location: 'San Francisco, CA',
-          rating: 4.7,
+          location: 'Miami Beach, FL',
+          rating: 4.8,
           title: 'Weekend Beach Cleanup',
           description:
-              'Help us keep our local beaches clean and safe for wildlife!',
+              'Join our weekend beach cleanup event and help preserve our beautiful coastline! Earn volunteer hours and meet new friends.',
           imageUrl:
               'https://images.unsplash.com/photo-1501959915551-4e8d30928317?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1887&q=80',
-          date: 'Tomorrow, 9 AM - 12 PM',
+          date: DateTime.now().add(const Duration(days: 3)),
           isQuest: true,
+          coinPrice: 0,
         ),
 
         // Service card
         _buildQuestCard(
-          organizationName: 'Emily Parker',
-          location: 'Oakland, CA',
-          rating: 4.8,
+          organizationName: 'Design Studio',
+          location: 'Online Service',
+          rating: 4.9,
           title: 'Modern Interior Design',
           description:
-              'Transform your space with professional interior design services.',
+              'Get expert advice on transforming your living space with modern design concepts and affordable solutions.',
           imageUrl:
               'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1776&q=80',
-          date: 'Next week',
+          date: DateTime.now().add(const Duration(days: 7)),
           isQuest: false,
+          coinPrice: 250,
         ),
 
         // Another service card
         _buildQuestCard(
-          organizationName: 'Tech Solutions',
-          location: 'Palo Alto, CA',
-          rating: 4.9,
-          title: 'Website Development',
+          organizationName: 'Tech Mentors',
+          location: 'Remote',
+          rating: 4.7,
+          title: 'Learn Python Programming',
           description:
-              'Professional website development services for small businesses and startups.',
+              'Interactive sessions to help you master Python programming fundamentals with real-world projects and exercises.',
           imageUrl:
               'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1115&q=80',
-          date: 'Available now',
+          date: DateTime.now(),
           isQuest: false,
+          coinPrice: 180,
         ),
 
         // Another quest
@@ -538,8 +554,9 @@ class _HomeScreenState extends State<HomeScreen> {
               'Join us for a day of planting trees to beautify our community and fight climate change.',
           imageUrl:
               'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-          date: 'This Saturday, 10 AM - 2 PM',
+          date: DateTime.now().subtract(Duration(days: 2)),
           isQuest: true,
+          coinPrice: 0,
         ),
       ],
     );
@@ -552,478 +569,260 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String description,
     required String imageUrl,
-    required String date,
+    required DateTime? date,
     required bool isQuest,
+    required int coinPrice,
   }) {
     final serviceType = isQuest ? 'QUEST' : 'SERVICE';
-    final coinPrice = isQuest ? 0 : (25 + (title.length * 5));
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Organization/provider info
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(
-                'https://i.pravatar.cc/150?img=${organizationName.hashCode}',
+    return GestureDetector(
+      onTap: () {
+        // Create a ServiceLocation object from card data
+        final serviceLocation = ServiceLocation.fromCardData(
+          title: title,
+          organization: organizationName,
+          location: location,
+          rating: rating,
+          imageUrl: imageUrl,
+          date: date,
+          description: description,
+          isQuest: isQuest,
+          coinPrice: coinPrice,
+        );
+
+        // Navigate to the service detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                ServiceDetailScreen(serviceLocation: serviceLocation),
+          ),
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        child: InkWell(
+          onTap: () {
+            final serviceLocation = ServiceLocation.fromCardData(
+              title: title,
+              organization: organizationName,
+              location: location,
+              rating: rating,
+              imageUrl: imageUrl,
+              date: date,
+              description: description,
+              isQuest: isQuest,
+              coinPrice: coinPrice,
+            );
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ServiceDetailScreen(serviceLocation: serviceLocation),
               ),
-              onBackgroundImageError: (_, __) {
-                // Handle image load error
-              },
-            ),
-            title: Text(
-              organizationName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Row(
-              children: [
-                const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(location, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.star, size: 16, color: Colors.amber[700]),
-                Text(
-                  ' $rating',
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Organization/provider info
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(
+                    'https://i.pravatar.cc/150?img=${organizationName.hashCode}',
+                  ),
+                  onBackgroundImageError: (_, __) {
+                    // Handle image load error
+                  },
+                ),
+                title: Text(
+                  organizationName,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
-              ],
-            ),
-          ),
+                subtitle: Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(location, style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, size: 16, color: Colors.amber[700]),
+                    Text(
+                      ' $rating',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                        icon: const Icon(Icons.more_vert), onPressed: () {}),
+                  ],
+                ),
+              ),
 
-          // Image
-          Stack(
-            children: [
-              Image.network(
-                imageUrl,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
+              // Image
+              Stack(
+                children: [
+                  Image.network(
+                    imageUrl,
                     height: 200,
                     width: double.infinity,
-                    color: Colors.grey[200],
-                    child: const Icon(
-                      Icons.image_not_supported,
-                      size: 50,
-                      color: Colors.grey,
-                    ),
-                  );
-                },
-              ),
-              Positioned(
-                left: 16,
-                top: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 200,
+                        width: double.infinity,
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      );
+                    },
                   ),
-                  decoration: BoxDecoration(
-                    color: isQuest ? Colors.blue : Colors.deepPurple,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    serviceType,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ),
-              if (!isQuest)
-                Positioned(
-                  right: 16,
-                  top: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.amber[700],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.monetization_on,
-                          size: 14,
+                  Positioned(
+                    left: 16,
+                    top: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isQuest ? Colors.blue : Colors.deepPurple,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        serviceType,
+                        style: const TextStyle(
                           color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$coinPrice',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
+                  if (!isQuest)
+                    Positioned(
+                      right: 16,
+                      top: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[700],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.monetization_on,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$coinPrice',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      description,
+                      style: TextStyle(color: Colors.grey[600], height: 1.3),
+                    ),
+                    if (date != null) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 16),
+                          const SizedBox(width: 8),
+                          Text(DateFormat('MMM d, yyyy').format(date!)),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
+              ),
+
+              // Actions
+              Padding(
+                padding: const EdgeInsets.all(16).copyWith(top: 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          final serviceLocation = ServiceLocation.fromCardData(
+                            title: title,
+                            organization: organizationName,
+                            location: location,
+                            rating: rating,
+                            imageUrl: imageUrl,
+                            date: date,
+                            description: description,
+                            isQuest: isQuest,
+                            coinPrice: coinPrice,
+                          );
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ServiceDetailScreen(
+                                  serviceLocation: serviceLocation),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isQuest ? Colors.blue : Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.visibility),
+                        label: Text(isQuest ? 'Join Quest' : 'View Details'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: TextStyle(color: Colors.grey[600], height: 1.3),
-                ),
-                if (date.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, size: 16),
-                      const SizedBox(width: 8),
-                      Text(date),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // Actions
-          Padding(
-            padding: const EdgeInsets.all(16).copyWith(top: 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: Text(isQuest ? 'Join Quest' : 'Apply Now'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isQuest ? Colors.blue : Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.bookmark_border),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(Icons.share_outlined),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServicesMapScreen() {
-    // Initialize markers if needed
-    if (_markers.isEmpty) {
-      _initMarkers();
-    }
-
-    print(">>> Building map screen with ${_markers.length} markers");
-    print(
-        ">>> Initial camera position: ${_initialCameraPosition.target.latitude}, ${_initialCameraPosition.target.longitude}");
-    print(">>> Current map type: $_currentMapType");
-
-    return Stack(
-      children: [
-        Container(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          color: Colors
-              .grey[300], // Background color to show the widget is rendering
-          child: GoogleMap(
-            initialCameraPosition: _initialCameraPosition,
-            markers: _markers.values.toSet(),
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            zoomControlsEnabled: true,
-            mapToolbarEnabled: false,
-            mapType: _currentMapType,
-            onMapCreated: (GoogleMapController controller) {
-              print(">>> onMapCreated called");
-              _mapController.complete(controller);
-              // Try to move to user's location when map is created
-              _getCurrentLocation();
-            },
-            onTap: (_) {
-              // Clear selection when tapping the map
-              setState(() {
-                _serviceSelected = false;
-                _selectedService = null;
-              });
-            },
-          ),
         ),
-
-        // Filter chips for map view
-        Positioned(
-          top: 16,
-          left: 16,
-          right: 16,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Column(
-                children: [
-                  // Service type filter
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Row(
-                      children: [
-                        _buildMapFilterChip('All', _mapFilterType == 'All'),
-                        _buildMapFilterChip(
-                          'Quests',
-                          _mapFilterType == 'Quests',
-                        ),
-                        _buildMapFilterChip(
-                          'Services',
-                          _mapFilterType == 'Services',
-                        ),
-                        _buildMapFilterChip(
-                          'Nearby',
-                          _mapFilterType == 'Nearby',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Map type selector
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'Map Type: ',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        _buildMapTypeButton('Normal', MapType.normal),
-                        _buildMapTypeButton('Satellite', MapType.satellite),
-                        _buildMapTypeButton('Hybrid', MapType.hybrid),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Service details card when a marker is selected
-        if (_serviceSelected && _selectedService != null)
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: _buildServiceInfoCard(_selectedService!),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildMapFilterChip(String label, bool selected) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (value) {
-          setState(() {
-            _mapFilterType = label;
-            _initMarkers();
-          });
-        },
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: selected ? Colors.blue : Colors.grey[300]!),
-        ),
-        showCheckmark: false,
-        selectedColor: Colors.blue.withOpacity(0.1),
-        labelStyle: TextStyle(
-          color: selected ? Colors.blue : Colors.black,
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMapTypeButton(String label, MapType mapType) {
-    final bool isSelected = _currentMapType == mapType;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: TextButton(
-        onPressed: () {
-          setState(() {
-            _currentMapType = mapType;
-          });
-        },
-        style: TextButton.styleFrom(
-          backgroundColor:
-              isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-          minimumSize: const Size(0, 30),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: BorderSide(
-              color: isSelected ? Colors.blue : Colors.transparent,
-              width: 1,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.blue : Colors.black87,
-            fontSize: 12,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServiceInfoCard(ServiceLocation service) {
-    final bool isQuest = service.serviceType == 'quest';
-    final Color cardColor = isQuest ? Colors.blue : Colors.deepPurple;
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: CircleAvatar(
-              backgroundColor: cardColor.withOpacity(0.1),
-              child: Icon(
-                isQuest ? Icons.volunteer_activism : Icons.home_repair_service,
-                color: cardColor,
-              ),
-            ),
-            title: Text(
-              service.title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(service.providerName),
-            trailing: isQuest
-                ? const Chip(
-                    label: Text('QUEST'),
-                    backgroundColor: Colors.blue,
-                    labelStyle: TextStyle(color: Colors.white, fontSize: 12),
-                  )
-                : Chip(
-                    label: Text('${service.coinPrice} ¢'),
-                    backgroundColor: Colors.amber,
-                    labelStyle: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Row(
-              children: [
-                // Add a locate button
-                IconButton(
-                  icon: const Icon(Icons.center_focus_strong),
-                  tooltip: 'Center on map',
-                  onPressed: () {
-                    _focusOnMarker(service.latLng);
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    service.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.directions),
-                  label: const Text('Directions'),
-                  onPressed: () {
-                    _openDirections(service.latitude, service.longitude);
-                  },
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: cardColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    // Apply for service or join quest
-                  },
-                  child: Text(isQuest ? 'Join Quest' : 'Apply Now'),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1991,16 +1790,12 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'Light, Dark, or System default',
               icon: Icons.color_lens_outlined,
               onTap: () {},
-              trailing:
-                  const Text('Light', style: TextStyle(color: Colors.grey)),
             ),
             _buildSettingsTile(
               title: 'Language',
               subtitle: 'Set your preferred language',
               icon: Icons.language_outlined,
               onTap: () {},
-              trailing:
-                  const Text('English', style: TextStyle(color: Colors.grey)),
             ),
             _buildSettingsTile(
               title: 'Notifications',
@@ -2613,6 +2408,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildServicesMapScreen() {
+    return Center(
+      child: Text('Map Screen Coming Soon'),
     );
   }
 }

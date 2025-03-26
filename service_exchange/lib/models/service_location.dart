@@ -1,29 +1,38 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
 
 class ServiceLocation {
   final String id;
   final String title;
   final String description;
+  final String providerId;
+  final String providerName;
+  final String address;
+  final String imageUrl;
   final double latitude;
   final double longitude;
-  final String serviceType; // "quest" or "service"
+  final double rating;
+  final int ratingCount;
   final int coinPrice;
-  final String providerName;
-  final String imageUrl;
-  final DateTime createdAt;
+  final bool isQuest;
+  final DateTime? date;
 
   ServiceLocation({
     required this.id,
     required this.title,
     required this.description,
+    required this.providerId,
+    required this.providerName,
+    required this.address,
+    required this.imageUrl,
     required this.latitude,
     required this.longitude,
-    required this.serviceType,
+    required this.rating,
+    required this.ratingCount,
     required this.coinPrice,
-    required this.providerName,
-    required this.imageUrl,
-    required this.createdAt,
+    required this.isQuest,
+    this.date,
   });
 
   LatLng get latLng => LatLng(latitude, longitude);
@@ -48,13 +57,17 @@ class ServiceLocation {
       id: id,
       title: _mockTitles[idNum % _mockTitles.length],
       description: _mockDescriptions[idNum % _mockDescriptions.length],
+      providerId: DateTime.now().millisecondsSinceEpoch.toString(),
+      providerName: _mockProviders[idNum % _mockProviders.length],
+      address: _mockAddresses[idNum % _mockAddresses.length],
+      imageUrl: 'https://picsum.photos/500/300?random=$id',
       latitude: lat,
       longitude: lng,
-      serviceType: idNum % 2 == 0 ? 'quest' : 'service',
+      rating: 4.5 + (idNum % 1.0),
+      ratingCount: 10 + DateTime.now().second,
       coinPrice: idNum % 2 == 0 ? 0 : (idNum % 5) * 50 + 100,
-      providerName: _mockProviders[idNum % _mockProviders.length],
-      imageUrl: 'https://picsum.photos/500/300?random=$id',
-      createdAt: DateTime.now().subtract(Duration(days: idNum % 30)),
+      isQuest: idNum % 2 == 0,
+      date: DateTime.now().subtract(Duration(days: idNum % 30)),
     );
   }
 
@@ -122,4 +135,82 @@ class ServiceLocation {
     'SparkleWash Auto',
     'GlobalTalk Community',
   ];
+
+  static final List<String> _mockAddresses = [
+    '123 Main St, New York, NY 10001',
+    '456 Elm St, Brooklyn, NY 11201',
+    '789 Oak St, Queens, NY 11354',
+    '101 Pine St, Bronx, NY 10451',
+    '222 Cedar St, Staten Island, NY 10301',
+  ];
+
+  // Create a mock service location from card data
+  factory ServiceLocation.fromCardData({
+    required String title,
+    required String organization,
+    required String location,
+    required double rating,
+    required String imageUrl,
+    required DateTime? date,
+    required String description,
+    required bool isQuest,
+    required int coinPrice,
+  }) {
+    return ServiceLocation(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      description: description,
+      providerId: DateTime.now().millisecondsSinceEpoch.toString(),
+      providerName: organization,
+      address: location,
+      imageUrl: imageUrl,
+      latitude: 37.7749, // Mock coordinates (San Francisco)
+      longitude: -122.4194,
+      rating: rating,
+      ratingCount: 10 + DateTime.now().second, // Random rating count
+      coinPrice: coinPrice,
+      isQuest: isQuest,
+      date: date,
+    );
+  }
+
+  // Factory constructor to create a service location from JSON data
+  factory ServiceLocation.fromJson(Map<String, dynamic> json) {
+    return ServiceLocation(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      providerId: json['provider_id'],
+      providerName: json['provider_name'],
+      address: json['address'],
+      imageUrl: json['image_url'],
+      latitude: json['latitude'].toDouble(),
+      longitude: json['longitude'].toDouble(),
+      rating: json['rating'].toDouble(),
+      ratingCount: json['rating_count'],
+      coinPrice: json['coin_price'],
+      isQuest: json['is_quest'],
+      date: json['date'] != null ? DateTime.parse(json['date']) : null,
+    );
+  }
+
+  // Convert service location to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'provider_id': providerId,
+      'provider_name': providerName,
+      'address': address,
+      'image_url': imageUrl,
+      'latitude': latitude,
+      'longitude': longitude,
+      'rating': rating,
+      'rating_count': ratingCount,
+      'coin_price': coinPrice,
+      'is_quest': isQuest,
+      'date': date?.toIso8601String(),
+    };
+  }
 }
