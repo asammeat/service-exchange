@@ -6,6 +6,7 @@ import 'screens/booking_history_screen.dart';
 import 'screens/profile_edit_screen.dart';
 import 'screens/bookings_screen.dart';
 import 'models/user_profile.dart';
+import 'screens/env.dart'; // Import environment variables
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,9 +14,8 @@ void main() async {
   // Initialize Supabase
   // The app will display mock data if the database is not accessible
   await Supabase.initialize(
-    url: 'https://svfwlvytgaodynvvkngt.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2Zndsdnl0Z2FvZHludnZrbmd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTE1NzUwNTQsImV4cCI6MjAyNzE1MTA1NH0.K3fOVnqm_kn5k8mWZ9s_5pzYAyUe5YU6Ro2ZXV0JwT0',
+    url: Environment.supabaseUrl,
+    anonKey: Environment.supabaseKey,
   );
 
   runApp(const MyApp());
