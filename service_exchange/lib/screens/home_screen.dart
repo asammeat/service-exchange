@@ -14,6 +14,10 @@ import 'service_detail_screen.dart';
 import 'booking_history_screen.dart';
 import 'user_profile_screen.dart';
 import 'notifications_screen.dart';
+import '../components/home/post_card.dart';
+import '../components/home/map_view.dart';
+import '../components/home/filter_bar.dart';
+import '../components/shared/user_avatar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -184,6 +188,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _onServiceSelected(ServiceLocation location) {
+    setState(() {
+      _serviceSelected = true;
+      _selectedService = location;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -314,91 +325,28 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Filter tabs
-            Container(
-              color: Colors.white,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Filter tabs scrolling
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Row(
-                      children: List.generate(
-                        _filterOptions.length,
-                        (index) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4.0,
-                            vertical: 8.0,
-                          ),
-                          child: FilterChip(
-                            label: Text(_filterOptions[index]),
-                            selected: _selectedFilterIndex == index,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedFilterIndex = index;
-                              });
-                            },
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: _selectedFilterIndex == index
-                                    ? Colors.blue
-                                    : Colors.grey[300]!,
-                              ),
-                            ),
-                            showCheckmark: false,
-                            selectedColor: Colors.blue.withOpacity(0.1),
-                            labelStyle: TextStyle(
-                              color: _selectedFilterIndex == index
-                                  ? Colors.blue
-                                  : Colors.black,
-                              fontWeight: _selectedFilterIndex == index
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Currently showing text
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 16.0,
-                      bottom: 8.0,
-                      top: 4.0,
-                    ),
-                    child: Text(
-                      'Currently showing: ${_filterOptions[_selectedFilterIndex]}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                  ),
-                  // Divider
-                  const Divider(height: 1, thickness: 1),
-                ],
-              ),
+            FilterBar(
+              filterOptions: _filterOptions,
+              selectedIndex: _selectedFilterIndex,
+              onFilterSelected: (index) {
+                setState(() {
+                  _selectedFilterIndex = index;
+                });
+              },
             ),
-            // Main content - Service/Quest listings
             Expanded(
               child: IndexedStack(
                 index: _selectedIndex,
                 children: [
-                  // Home Feed Tab
                   _buildServicesFeed(),
-
-                  // Services Map Tab
-                  _buildServicesMapScreen(),
-
-                  // Create Service Tab
+                  MapView(
+                    filterType: _filterOptions[_selectedFilterIndex],
+                    serviceLocations: _serviceLocations,
+                    onServiceSelected: _onServiceSelected,
+                    selectedService: _selectedService,
+                  ),
                   _buildCreateServiceScreen(),
-
-                  // Profile Tab (was Following)
                   _buildProfileScreen(),
-
-                  // Settings Tab
                   _buildSettingsScreen(),
                 ],
               ),
@@ -407,16 +355,42 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       extendBody: true,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blue,
-        elevation: 2,
-        child: const Icon(Icons.add),
-        onPressed: () {
-          setState(() {
-            _selectedIndex = 2; // Go to create service screen
-          });
-        },
-      ),
+      floatingActionButton: _selectedIndex == 0
+          ? Container(
+              height: 65,
+              width: 65,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.blue[300]!, Colors.blue[700]!],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.4),
+                    spreadRadius: 1,
+                    blurRadius: 15,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                onPressed: () {
+                  setState(() {
+                    _selectedIndex = 2; // Go to create service screen
+                  });
+                },
+                child: const Icon(
+                  Icons.add,
+                  size: 32,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: BottomAppBar(
         elevation: 8,
@@ -521,482 +495,58 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildServicesFeed() {
+    // Filter services based on selected filter
+    final filteredServices = _serviceLocations.where((service) {
+      if (_filterOptions[_selectedFilterIndex] == 'All') return true;
+      if (_filterOptions[_selectedFilterIndex] == 'Quests')
+        return service.isQuest;
+      if (_filterOptions[_selectedFilterIndex] == 'Services')
+        return !service.isQuest;
+      if (_filterOptions[_selectedFilterIndex] == 'Nearby' &&
+          _currentLocation != null) {
+        // Calculate distance and return services within 2km
+        final latDiff = (service.latitude - _currentLocation!.latitude!).abs();
+        final lngDiff =
+            (service.longitude - _currentLocation!.longitude!).abs();
+        return (latDiff + lngDiff) < 0.05;
+      }
+      return true;
+    }).toList();
+
     return ListView.builder(
       padding: EdgeInsets.zero,
-      itemCount: 10,
+      itemCount: filteredServices.length,
       itemBuilder: (context, index) {
-        return _buildQuestCard(
-          organizationName: 'Organization ${index + 1}',
-          location: 'Location ${index + 1}',
-          rating: 4.5,
-          title: 'Service Title ${index + 1}',
-          description:
-              'This is a detailed description of the service or quest that explains what it involves and what participants can expect.',
-          imageUrls: [
-            'https://picsum.photos/500/500?random=${index * 3 + 1}',
-            'https://picsum.photos/500/500?random=${index * 3 + 2}',
-            'https://picsum.photos/500/500?random=${index * 3 + 3}',
-          ],
-          date: DateTime.now().add(Duration(days: index)),
-          isQuest: index % 2 == 0,
-          coinPrice: (index + 1) * 100,
+        final service = filteredServices[index];
+        return PostCard(
+          organizationName: service.providerName,
+          location: service.address,
+          rating: service.rating,
+          title: service.title,
+          description: service.description,
+          imageUrl: service.imageUrl ??
+              'https://picsum.photos/500/300?random=${service.id}',
+          date: _formatDate(service.createdAt ?? DateTime.now()),
+          questStatus: service.isQuest ? "Active" : "",
+          coinPrice: service.coinPrice,
+          isQuest: service.isQuest,
         );
       },
     );
   }
 
-  Widget _buildQuestCard({
-    required String organizationName,
-    required String location,
-    required double rating,
-    required String title,
-    required String description,
-    required List<String> imageUrls,
-    required DateTime date,
-    required bool isQuest,
-    required int coinPrice,
-  }) {
-    final pageController = PageController();
-    final formattedDate = DateFormat('MMMM d, y').format(date);
-    int currentPage = 0;
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              bottom: BorderSide(
-                color: Colors.grey.shade200,
-                width: 1,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // User info header
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundImage: NetworkImage(
-                        'https://i.pravatar.cc/100?u=$organizationName',
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => UserProfileScreen(
-                                    username: organizationName,
-                                    userId:
-                                        organizationName.hashCode.toString(),
-                                    avatarUrl:
-                                        'https://i.pravatar.cc/300?u=$organizationName',
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              organizationName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                size: 12,
-                                color: Colors.grey[600],
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                location,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.star,
-                                size: 12,
-                                color: Colors.amber[700],
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                rating.toString(),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          builder: (context) => Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: const Icon(Icons.share),
-                                title: const Text('Share'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(Icons.report),
-                                title: const Text('Report'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                },
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Image slider with indicators
-              Stack(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: PageView.builder(
-                      controller: pageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          currentPage = index;
-                        });
-                      },
-                      itemCount: imageUrls.length,
-                      itemBuilder: (context, index) {
-                        return Image.network(
-                          imageUrls[index],
-                          fit: BoxFit.cover,
-                        );
-                      },
-                    ),
-                  ),
-                  // Service type label overlay
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isQuest
-                            ? Colors.blue.withOpacity(0.9)
-                            : Colors.deepPurple.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isQuest ? 'QUEST' : 'SERVICE',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Price tag for services
-                  if (!isQuest)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.monetization_on,
-                              color: Colors.amber,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              coinPrice.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Page indicator dots
-                  Positioned(
-                    bottom: 12,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        imageUrls.length,
-                        (index) => Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: currentPage == index
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.5),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Interaction buttons and title
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Interaction buttons row
-                    Row(
-                      children: [
-                        // Like button
-                        IconButton(
-                          icon: const Icon(Icons.favorite_border),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const SizedBox(width: 16),
-                        // Comment button
-                        IconButton(
-                          icon: const Icon(Icons.chat_bubble_outline),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const SizedBox(width: 16),
-                        // Share button
-                        IconButton(
-                          icon: const Icon(Icons.share),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const Spacer(),
-                        // Save button
-                        IconButton(
-                          icon: const Icon(Icons.bookmark_border),
-                          onPressed: () {},
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Likes count
-                    const Text(
-                      '123 likes',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    // Title and description
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                            text: '$organizationName ',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextSpan(text: title),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    // View all comments button
-                    Text(
-                      'View all 28 comments',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Date and location
-                    Row(
-                      children: [
-                        Text(
-                          formattedDate,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '•',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          location,
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Action button
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isQuest ? Colors.blue : Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      isQuest ? 'Join Quest' : 'Book Service',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // Helper method to determine a specific service type based on the title
-  String _getSpecificServiceType(String title) {
-    if (title.toLowerCase().contains('interior design')) {
-      return 'Interior Designer';
-    } else if (title.toLowerCase().contains('python')) {
-      return 'Programming Tutor';
-    } else if (title.toLowerCase().contains('dog')) {
-      return 'Pet Services';
-    } else if (title.toLowerCase().contains('cleanup')) {
-      return 'Environmental Services';
-    } else if (title.toLowerCase().contains('garden')) {
-      return 'Gardening Services';
-    } else if (title.toLowerCase().contains('piano')) {
-      return 'Piano Teacher';
-    } else if (title.toLowerCase().contains('web')) {
-      return 'Web Development';
-    } else if (title.toLowerCase().contains('photo')) {
-      return 'Photography';
-    } else if (title.toLowerCase().contains('english')) {
-      return 'Language Teacher';
-    } else if (title.toLowerCase().contains('math')) {
-      return 'Math Tutor';
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} minutes ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays < 30) {
+      return '${difference.inDays} days ago';
     } else {
-      // Default categories based on the first word if no match
-      final firstWord = title.split(' ').first;
-      return '$firstWord Service';
-    }
-  }
-
-  Widget _buildActionButton(IconData icon, {bool isRed = false}) {
-    return IconButton(
-      icon: Icon(
-        icon,
-        size: 24,
-        color: isRed ? Colors.red : Colors.black87,
-      ),
-      onPressed: () {},
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      constraints: const BoxConstraints(),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Future<void> _openDirections(double lat, double lng) async {
-    final url = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
-    );
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      // Show error if unable to launch Google Maps
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open directions'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      return DateFormat('MMM d, yyyy').format(date);
     }
   }
 
@@ -2563,12 +2113,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildServicesMapScreen() {
-    return Center(
-      child: Text('Map Screen Coming Soon'),
     );
   }
 }
