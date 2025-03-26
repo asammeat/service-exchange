@@ -42,7 +42,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[50],
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
@@ -75,85 +75,210 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Profile Header with Background Image
+                  Stack(
+                    children: [
+                      // Background Image
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: NetworkImage(
+                              'https://picsum.photos/800/400?random=${widget.username.hashCode}',
+                            ),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      // Gradient Overlay
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Profile Content
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              // Profile Image with Border
+                              Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  backgroundImage: NetworkImage(
+                                    widget.avatarUrl ??
+                                        'https://i.pravatar.cc/150?img=${widget.username.hashCode}',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // User Info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.username,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Professional service provider',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Stats Cards
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Profile Image
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.grey[200]!,
-                              width: 2,
-                            ),
-                          ),
-                          child: CircleAvatar(
-                            backgroundImage: NetworkImage(
-                              widget.avatarUrl ??
-                                  'https://i.pravatar.cc/150?img=${widget.username.hashCode}',
-                            ),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Services',
+                            _servicesCount.toString(),
+                            Icons.home_repair_service,
+                            Colors.deepPurple,
                           ),
                         ),
-                        const SizedBox(width: 24),
-                        // Stats
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildStatColumn('Services', _servicesCount),
-                              _buildStatColumn('Quests', _questsCount),
-                              _buildStatColumn('Rating', _rating.toString()),
-                            ],
+                          child: _buildStatCard(
+                            'Quests',
+                            _questsCount.toString(),
+                            Icons.volunteer_activism,
+                            Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Rating',
+                            _rating.toString(),
+                            Icons.star,
+                            Colors.amber,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Bio Section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  // Bio Section with Custom Design
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.username,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue[700]),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'About',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Professional service provider | Community volunteer',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 12),
                         const Text(
                           'Passionate about helping others and making a difference in the community 🌟',
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Joined March 2024',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on,
+                                size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Miami, FL',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Member since March 2024',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Follow/Message Buttons
+                  // Action Buttons with Custom Design
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton(
+                          child: ElevatedButton.icon(
                             onPressed: () {
                               setState(() {
                                 _isFollowing = !_isFollowing;
@@ -166,11 +291,17 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                                   _isFollowing ? Colors.black : Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: Text(
+                            icon: Icon(
+                              _isFollowing
+                                  ? Icons.person_remove
+                                  : Icons.person_add,
+                              size: 20,
+                            ),
+                            label: Text(
                               _isFollowing ? 'Following' : 'Follow',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -178,9 +309,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Expanded(
-                          child: OutlinedButton(
+                          child: OutlinedButton.icon(
                             onPressed: () {
                               // Open message screen
                             },
@@ -188,11 +319,12 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                               foregroundColor: Colors.black,
                               side: const BorderSide(color: Colors.grey),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: const Text(
+                            icon: const Icon(Icons.message_outlined, size: 20),
+                            label: const Text(
                               'Message',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -204,32 +336,36 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Badges/Achievements
-                  SizedBox(
-                    height: 100,
+                  // Achievement Badges with Custom Design
+                  Container(
+                    height: 120,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: [
                         _buildAchievementBadge(
                           'Top Rated',
                           '4.8 ⭐',
                           Colors.amber,
+                          Icons.workspace_premium,
                         ),
                         _buildAchievementBadge(
                           'Quest Master',
                           '50+ Quests',
                           Colors.blue,
+                          Icons.military_tech,
                         ),
                         _buildAchievementBadge(
                           'Super Helper',
                           '100+ Services',
                           Colors.green,
+                          Icons.emoji_events,
                         ),
                         _buildAchievementBadge(
                           'Early Bird',
                           'Member',
                           Colors.purple,
+                          Icons.rocket_launch,
                         ),
                       ],
                     ),
@@ -245,6 +381,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   labelColor: Colors.black,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.black,
+                  indicatorWeight: 3,
                   tabs: const [
                     Tab(text: 'Services'),
                     Tab(text: 'Quests'),
@@ -268,30 +405,49 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     );
   }
 
-  Widget _buildStatColumn(String label, dynamic value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value.toString(),
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 12,
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAchievementBadge(String title, String subtitle, Color color) {
+  Widget _buildAchievementBadge(
+    String title,
+    String subtitle,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       width: 100,
       margin: const EdgeInsets.only(right: 8),
@@ -301,16 +457,26 @@ class _UserProfileScreenState extends State<UserProfileScreen>
             width: 60,
             height: 60,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color,
-                width: 2,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withOpacity(0.8),
+                  color,
+                ],
               ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Icon(
-              Icons.workspace_premium,
-              color: color,
+              icon,
+              color: Colors.white,
               size: 30,
             ),
           ),
