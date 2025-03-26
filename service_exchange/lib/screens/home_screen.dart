@@ -8,6 +8,7 @@ import 'dart:async';
 import '../models/service_location.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -215,6 +216,13 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         centerTitle: false,
         actions: [
+          // Search button
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black87),
+            onPressed: () {
+              _showSearchModal(context);
+            },
+          ),
           // Account type indicator
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
@@ -750,28 +758,40 @@ class _HomeScreenState extends State<HomeScreen> {
       _initMarkers();
     }
 
+    print(">>> Building map screen with ${_markers.length} markers");
+    print(
+        ">>> Initial camera position: ${_initialCameraPosition.target.latitude}, ${_initialCameraPosition.target.longitude}");
+    print(">>> Current map type: $_currentMapType");
+
     return Stack(
       children: [
-        GoogleMap(
-          initialCameraPosition: _initialCameraPosition,
-          markers: _markers.values.toSet(),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          zoomControlsEnabled: true,
-          mapToolbarEnabled: false,
-          mapType: _currentMapType,
-          onMapCreated: (GoogleMapController controller) {
-            _mapController.complete(controller);
-            // Try to move to user's location when map is created
-            _getCurrentLocation();
-          },
-          onTap: (_) {
-            // Clear selection when tapping the map
-            setState(() {
-              _serviceSelected = false;
-              _selectedService = null;
-            });
-          },
+        Container(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          color: Colors
+              .grey[300], // Background color to show the widget is rendering
+          child: GoogleMap(
+            initialCameraPosition: _initialCameraPosition,
+            markers: _markers.values.toSet(),
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+            zoomControlsEnabled: true,
+            mapToolbarEnabled: false,
+            mapType: _currentMapType,
+            onMapCreated: (GoogleMapController controller) {
+              print(">>> onMapCreated called");
+              _mapController.complete(controller);
+              // Try to move to user's location when map is created
+              _getCurrentLocation();
+            },
+            onTap: (_) {
+              // Clear selection when tapping the map
+              setState(() {
+                _serviceSelected = false;
+                _selectedService = null;
+              });
+            },
+          ),
         ),
 
         // Filter chips for map view
@@ -1311,6 +1331,10 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildStatsCard(),
         const SizedBox(height: 16),
 
+        // Achievements Section
+        _buildAchievementsCard(),
+        const SizedBox(height: 16),
+
         // Account Type Switch
         Card(
           elevation: 2,
@@ -1369,6 +1393,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Activity Timeline
+        _buildActivityTimelineCard(),
         const SizedBox(height: 16),
 
         // My Activities
@@ -1514,7 +1542,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: const Icon(Icons.settings, color: Colors.grey),
                 title: const Text('Settings'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {},
+                onTap: () {
+                  setState(() {
+                    _selectedIndex = 4; // Go to settings screen
+                  });
+                },
               ),
               const Divider(height: 0),
               ListTile(
@@ -1552,6 +1584,309 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _buildAchievementsCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Achievements',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  '3 of 9 unlocked',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 110,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              children: [
+                _buildAchievementItem(
+                  'First Quest',
+                  'Completed your first community quest',
+                  Icons.volunteer_activism,
+                  Colors.blue,
+                  true,
+                ),
+                _buildAchievementItem(
+                  'Service Provider',
+                  'Listed your first service',
+                  Icons.home_repair_service,
+                  Colors.deepPurple,
+                  true,
+                ),
+                _buildAchievementItem(
+                  'Top Rated',
+                  'Received 5 star rating',
+                  Icons.star,
+                  Colors.amber,
+                  true,
+                ),
+                _buildAchievementItem(
+                  'Quest Master',
+                  'Complete 10 community quests',
+                  Icons.military_tech,
+                  Colors.orange,
+                  false,
+                ),
+                _buildAchievementItem(
+                  'Eco Warrior',
+                  'Participate in 5 environmental quests',
+                  Icons.eco,
+                  Colors.green,
+                  false,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Center(
+              child: TextButton(
+                onPressed: () {},
+                child: const Text('View All Achievements'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAchievementItem(
+    String title,
+    String description,
+    IconData icon,
+    Color color,
+    bool unlocked,
+  ) {
+    return Container(
+      width: 120,
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Column(
+        children: [
+          Container(
+            height: 60,
+            width: 60,
+            decoration: BoxDecoration(
+              color: unlocked ? color.withOpacity(0.1) : Colors.grey[300],
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: unlocked ? color : Colors.grey,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              icon,
+              color: unlocked ? color : Colors.grey,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: unlocked ? Colors.black : Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Expanded(
+            child: Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityTimelineCard() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Activity Timeline',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('View All'),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 0),
+          _buildTimelineItem(
+            'Today',
+            'Messaged John about Dog Walking Service',
+            '2 hours ago',
+            Icons.chat_bubble_outline,
+            Colors.green,
+          ),
+          _buildTimelineConnector(),
+          _buildTimelineItem(
+            'Yesterday',
+            'Joined Beach Cleanup Quest',
+            '1 day ago',
+            Icons.nature_people,
+            Colors.blue,
+          ),
+          _buildTimelineConnector(),
+          _buildTimelineItem(
+            'July 15',
+            'Created a new service listing',
+            '3 days ago',
+            Icons.add_circle_outline,
+            Colors.deepPurple,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 32, bottom: 16, top: 8),
+            child: TextButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('View full history'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey[700],
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineItem(
+    String date,
+    String title,
+    String time,
+    IconData icon,
+    Color color,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Column(
+            children: [
+              Container(
+                width: 40,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    date,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  time,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineConnector() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 35),
+      child: Container(
+        width: 2,
+        height: 30,
+        color: Colors.grey[300],
+      ),
     );
   }
 
@@ -1984,6 +2319,300 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _showSearchModal(BuildContext context) {
+    final List<String> recentSearches = [
+      'dog walking',
+      'yard work',
+      'tutoring',
+      'beach cleanup',
+      'computer help',
+    ];
+
+    final List<String> popularCategories = [
+      'Home Services',
+      'Education',
+      'Environmental',
+      'Tech Support',
+      'Community Events',
+      'Pet Care',
+      'Legal Services',
+      'Health & Wellness',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.9,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Search',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Search bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: 'Search for services or quests',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onSubmitted: (value) {
+                        // Handle search
+                        Navigator.pop(context);
+                        if (value.isNotEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Searching for: $value'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+
+                  // Filter options
+                  Container(
+                    height: 60,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      children: [
+                        _buildSearchFilterChip('All', true),
+                        _buildSearchFilterChip('Services', false),
+                        _buildSearchFilterChip('Quests', false),
+                        _buildSearchFilterChip('Nearby', false),
+                        _buildSearchFilterChip('Popular', false),
+                      ],
+                    ),
+                  ),
+
+                  // Divider
+                  const Divider(),
+
+                  // Recent searches
+                  if (recentSearches.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Recent Searches',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              // Clear search history
+                            },
+                            child: const Text('Clear All'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey[600],
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(50, 30),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: recentSearches.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading:
+                                const Icon(Icons.history, color: Colors.grey),
+                            title: Text(recentSearches[index]),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.north_west, size: 16),
+                              onPressed: () {
+                                // Use this search term
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Searching for: ${recentSearches[index]}'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                            ),
+                            onTap: () {
+                              // Use this search term
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Searching for: ${recentSearches[index]}'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+
+                  // Popular categories
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      'Popular Categories',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 3,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: popularCategories.length,
+                      itemBuilder: (context, index) {
+                        return _buildCategoryButton(
+                          popularCategories[index],
+                          index: index,
+                          onTap: () {
+                            // Search for this category
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Browsing category: ${popularCategories[index]}'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchFilterChip(String label, bool selected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (selected) {
+          // Update filter
+        },
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: selected ? Colors.blue : Colors.grey[300]!,
+          ),
+        ),
+        showCheckmark: false,
+        selectedColor: Colors.blue.withOpacity(0.1),
+        labelStyle: TextStyle(
+          color: selected ? Colors.blue : Colors.black,
+          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryButton(String label,
+      {required int index, required VoidCallback onTap}) {
+    // Different colors for each category
+    final List<Color> colors = [
+      Colors.blue,
+      Colors.deepPurple,
+      Colors.green,
+      Colors.amber,
+      Colors.red,
+      Colors.teal,
+      Colors.indigo,
+      Colors.pink,
+    ];
+
+    final color = colors[index % colors.length];
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color, width: 1),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 }
