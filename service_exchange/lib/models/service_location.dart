@@ -1,6 +1,7 @@
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ServiceLocation {
   final String id;
@@ -9,14 +10,16 @@ class ServiceLocation {
   final String providerId;
   final String providerName;
   final String address;
-  final String imageUrl;
+  final String? imageUrl;
   final double latitude;
   final double longitude;
   final double rating;
   final int ratingCount;
   final int coinPrice;
   final bool isQuest;
-  final DateTime? date;
+  final DateTime? serviceDate;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ServiceLocation({
     required this.id,
@@ -25,14 +28,16 @@ class ServiceLocation {
     required this.providerId,
     required this.providerName,
     required this.address,
-    required this.imageUrl,
+    this.imageUrl,
     required this.latitude,
     required this.longitude,
     required this.rating,
     required this.ratingCount,
     required this.coinPrice,
     required this.isQuest,
-    this.date,
+    this.serviceDate,
+    this.createdAt,
+    this.updatedAt,
   });
 
   LatLng get latLng => LatLng(latitude, longitude);
@@ -67,7 +72,9 @@ class ServiceLocation {
       ratingCount: 10 + DateTime.now().second,
       coinPrice: idNum % 2 == 0 ? 0 : (idNum % 5) * 50 + 100,
       isQuest: idNum % 2 == 0,
-      date: DateTime.now().subtract(Duration(days: idNum % 30)),
+      serviceDate: DateTime.now().subtract(Duration(days: idNum % 30)),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 
@@ -170,12 +177,36 @@ class ServiceLocation {
       ratingCount: 10 + DateTime.now().second, // Random rating count
       coinPrice: coinPrice,
       isQuest: isQuest,
-      date: date,
+      serviceDate: date,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
   }
 
   // Factory constructor to create a service location from JSON data
   factory ServiceLocation.fromJson(Map<String, dynamic> json) {
+    final location = json['location'];
+    double latitude = 0.0;
+    double longitude = 0.0;
+
+    // Extract lat/lng from the PostGIS geography point
+    if (location != null) {
+      // The format from PostGIS is typically 'POINT(lng lat)'
+      final String pointStr = location.toString();
+      if (pointStr.startsWith('POINT')) {
+        final coords =
+            pointStr.replaceAll('POINT(', '').replaceAll(')', '').split(' ');
+        if (coords.length == 2) {
+          try {
+            longitude = double.parse(coords[0]);
+            latitude = double.parse(coords[1]);
+          } catch (e) {
+            print('Error parsing coordinates: $e');
+          }
+        }
+      }
+    }
+
     return ServiceLocation(
       id: json['id'],
       title: json['title'],
@@ -184,33 +215,217 @@ class ServiceLocation {
       providerName: json['provider_name'],
       address: json['address'],
       imageUrl: json['image_url'],
-      latitude: json['latitude'].toDouble(),
-      longitude: json['longitude'].toDouble(),
-      rating: json['rating'].toDouble(),
-      ratingCount: json['rating_count'],
-      coinPrice: json['coin_price'],
-      isQuest: json['is_quest'],
-      date: json['date'] != null ? DateTime.parse(json['date']) : null,
+      latitude: latitude,
+      longitude: longitude,
+      rating: (json['rating'] ?? 0.0).toDouble(),
+      ratingCount: json['rating_count'] ?? 0,
+      coinPrice: json['coin_price'] ?? 0,
+      isQuest: json['is_quest'] ?? false,
+      serviceDate: json['service_date'] != null
+          ? DateTime.parse(json['service_date'])
+          : null,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : null,
     );
   }
 
   // Convert service location to JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'title': title,
       'description': description,
       'provider_id': providerId,
       'provider_name': providerName,
       'address': address,
       'image_url': imageUrl,
+      // We'll use a DB function to create the point
+      'location': null, // This will be handled with the function call
       'latitude': latitude,
       'longitude': longitude,
       'rating': rating,
       'rating_count': ratingCount,
       'coin_price': coinPrice,
       'is_quest': isQuest,
-      'date': date?.toIso8601String(),
+      'service_date': serviceDate?.toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     };
+  }
+
+  // Fetch all services
+  static Future<List<ServiceLocation>> getAllServices({bool? isQuest}) async {
+    try {
+      final query = Supabase.instance.client.from('service_locations').select();
+
+      if (isQuest != null) {
+        query.eq('is_quest', isQuest);
+      }
+
+      final response = await query.order('created_at', ascending: false);
+
+      return (response as List)
+          .map<ServiceLocation>((json) => ServiceLocation.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching services: $e');
+      throw Exception('Failed to load services');
+    }
+  }
+
+  // Fetch services by provider ID
+  static Future<List<ServiceLocation>> getServicesByProvider(
+      String providerId) async {
+    try {
+      final response = await Supabase.instance.client
+          .from('service_locations')
+          .select()
+          .eq('provider_id', providerId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map<ServiceLocation>((json) => ServiceLocation.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching provider services: $e');
+      throw Exception('Failed to load provider services');
+    }
+  }
+
+  // Fetch services within a radius of a location
+  static Future<List<ServiceLocation>> getServicesNearLocation(
+      double latitude, double longitude, double radiusInMeters,
+      {bool? isQuest}) async {
+    try {
+      // Use the custom SQL function we defined in migrations
+      final response = await Supabase.instance.client
+          .rpc('find_services_within_radius', params: {
+        'lat': latitude,
+        'lng': longitude,
+        'radius_meters': radiusInMeters,
+        'filter_quest': isQuest,
+      });
+
+      return (response as List)
+          .map<ServiceLocation>((json) => ServiceLocation.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('Error fetching nearby services: $e');
+      throw Exception('Failed to load nearby services');
+    }
+  }
+
+  // Create a new service location
+  static Future<ServiceLocation> createService({
+    required String title,
+    required String description,
+    required String address,
+    required double latitude,
+    required double longitude,
+    required int coinPrice,
+    required bool isQuest,
+    String? imageUrl,
+    DateTime? serviceDate,
+  }) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    try {
+      // First get the user's profile to get their name
+      final profileResponse = await Supabase.instance.client
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+
+      final String providerName =
+          profileResponse['username'] ?? 'Unknown Provider';
+
+      // Create service data with the PostGIS point data
+      final serviceData = {
+        'title': title,
+        'description': description,
+        'provider_id': user.id,
+        'provider_name': providerName,
+        'address': address,
+        'image_url': imageUrl,
+        // Use SQL function to create the point
+        'location':
+            Supabase.instance.client.rpc('create_point_from_lat_lng', params: {
+          'lat': latitude,
+          'lng': longitude,
+        }),
+        'rating': 0.0,
+        'rating_count': 0,
+        'coin_price': coinPrice,
+        'is_quest': isQuest,
+        'service_date': serviceDate?.toIso8601String(),
+      };
+
+      final response = await Supabase.instance.client
+          .from('service_locations')
+          .insert(serviceData)
+          .select()
+          .single();
+
+      return ServiceLocation.fromJson(response);
+    } catch (e) {
+      print('Error creating service: $e');
+      throw Exception('Failed to create service: ${e.toString()}');
+    }
+  }
+
+  // Update service location
+  Future<ServiceLocation> update() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    if (user.id != providerId) {
+      throw Exception('Only the provider can update this service');
+    }
+
+    try {
+      final updateData = toJson();
+
+      final response = await Supabase.instance.client
+          .from('service_locations')
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+      return ServiceLocation.fromJson(response);
+    } catch (e) {
+      print('Error updating service: $e');
+      throw Exception('Failed to update service');
+    }
+  }
+
+  // Delete service location
+  Future<void> delete() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    if (user.id != providerId) {
+      throw Exception('Only the provider can delete this service');
+    }
+
+    try {
+      await Supabase.instance.client
+          .from('service_locations')
+          .delete()
+          .eq('id', id);
+    } catch (e) {
+      print('Error deleting service: $e');
+      throw Exception('Failed to delete service');
+    }
   }
 }

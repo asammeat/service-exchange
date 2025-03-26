@@ -78,6 +78,8 @@ class ServiceBooking {
   final BookingStatus status;
   final String? notes;
   final bool isQuest;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   ServiceBooking({
     required this.id,
@@ -93,30 +95,85 @@ class ServiceBooking {
     required this.status,
     this.notes,
     required this.isQuest,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory ServiceBooking.fromJson(Map<String, dynamic> json) {
-    return ServiceBooking(
-      id: json['id'],
-      serviceId: json['service_id'],
-      serviceName: json['service_name'],
-      providerId: json['provider_id'],
-      providerName: json['provider_name'],
-      userId: json['user_id'],
-      userEmail: json['user_email'],
-      bookingDate: DateTime.parse(json['booking_date']),
-      serviceDate: DateTime.parse(json['service_date']),
-      coinPrice: json['coin_price'],
-      status: BookingStatus.values.firstWhere(
-        (e) => e.toString().split('.').last == json['status'],
-        orElse: () => BookingStatus.pending,
-      ),
-      notes: json['notes'],
-      isQuest: json['is_quest'] ?? false,
-    );
+    try {
+      // Debug information
+      print('Processing booking JSON: ${json['id']}');
+
+      return ServiceBooking(
+        id: json['id'] ?? '',
+        serviceId: json['service_id'] ?? '',
+        serviceName: json['service_name'] ?? 'Unknown Service',
+        providerId: json['provider_id'] ?? '',
+        providerName: json['provider_name'] ?? 'Unknown Provider',
+        userId: json['user_id'] ?? '',
+        userEmail: json['user_email'] ?? 'unknown@example.com',
+        bookingDate: json['booking_date'] != null
+            ? DateTime.parse(json['booking_date'])
+            : DateTime.now(),
+        serviceDate: json['service_date'] != null
+            ? DateTime.parse(json['service_date'])
+            : DateTime.now(),
+        coinPrice: json['coin_price'] != null ? json['coin_price'] : 0,
+        status: _parseStatus(json['status'] ?? 'pending'),
+        notes: json['notes'],
+        isQuest: json['is_quest'] ?? false,
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'])
+            : null,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'])
+            : null,
+      );
+    } catch (e) {
+      print('Error parsing booking JSON: $e');
+      print('Problematic JSON: $json');
+
+      // Return a placeholder booking instead of crashing
+      return ServiceBooking(
+        id: json['id'] ?? 'error-${DateTime.now().millisecondsSinceEpoch}',
+        serviceId: json['service_id'] ?? '',
+        serviceName: 'Error: ${e.toString().substring(0, 20)}...',
+        providerId: json['provider_id'] ?? '',
+        providerName: 'Error Parsing Data',
+        userId: json['user_id'] ?? '',
+        userEmail: 'error@example.com',
+        bookingDate: DateTime.now(),
+        serviceDate: DateTime.now(),
+        coinPrice: 0,
+        status: BookingStatus.pending,
+        isQuest: false,
+      );
+    }
+  }
+
+  static BookingStatus _parseStatus(String statusStr) {
+    try {
+      // Convert from database format (pending) to enum format (BookingStatus.pending)
+      if (statusStr == 'in_progress') {
+        return BookingStatus.inProgress;
+      }
+
+      return BookingStatus.values.firstWhere(
+        (e) =>
+            e.toString().split('.').last.toLowerCase() ==
+            statusStr.toLowerCase(),
+      );
+    } catch (e) {
+      print('Error parsing status: $statusStr, Error: $e');
+      return BookingStatus.pending;
+    }
   }
 
   Map<String, dynamic> toJson() {
+    final String statusStr = status == BookingStatus.inProgress
+        ? 'in_progress'
+        : status.toString().split('.').last.toLowerCase();
+
     return {
       'id': id,
       'service_id': serviceId,
@@ -128,35 +185,103 @@ class ServiceBooking {
       'booking_date': bookingDate.toIso8601String(),
       'service_date': serviceDate.toIso8601String(),
       'coin_price': coinPrice,
-      'status': status.toString().split('.').last,
+      'status': statusStr,
       'notes': notes,
       'is_quest': isQuest,
+      'updated_at': DateTime.now().toIso8601String(),
     };
   }
 
-  static Future<List<ServiceBooking>> getBookingsForUser(String userId) async {
-    final response = await Supabase.instance.client
-        .from('bookings')
-        .select()
-        .eq('user_id', userId)
-        .order('service_date', ascending: false);
+  static Future<List<ServiceBooking>> getBookingsForUser() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
 
-    return response
-        .map<ServiceBooking>((json) => ServiceBooking.fromJson(json))
-        .toList();
+    try {
+      print('Fetching bookings for user: ${user.id}');
+
+      final response = await Supabase.instance.client
+          .from('service_bookings')
+          .select()
+          .eq('user_id', user.id)
+          .order('service_date', ascending: false);
+
+      print('Bookings response: $response');
+
+      if (response == null) {
+        print('Received null response from Supabase');
+        return [];
+      }
+
+      if (response is! List) {
+        print('Expected List but got: ${response.runtimeType}');
+        // Check if response is a Map with an error
+        if (response is Map) {
+          final map = response as Map;
+          if (map.containsKey('error')) {
+            throw Exception('Database error: ${map['error']}');
+          }
+        }
+        return [];
+      }
+
+      final bookings = response
+          .map<ServiceBooking>((json) => ServiceBooking.fromJson(json))
+          .toList();
+
+      print('Found ${bookings.length} bookings');
+      return bookings;
+    } catch (e) {
+      print('Error fetching bookings: $e');
+      throw Exception('Failed to load bookings: ${e.toString()}');
+    }
   }
 
-  static Future<List<ServiceBooking>> getBookingsForProvider(
-      String providerId) async {
-    final response = await Supabase.instance.client
-        .from('bookings')
-        .select()
-        .eq('provider_id', providerId)
-        .order('service_date', ascending: false);
+  static Future<List<ServiceBooking>> getBookingsForProvider() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
 
-    return response
-        .map<ServiceBooking>((json) => ServiceBooking.fromJson(json))
-        .toList();
+    try {
+      print('Fetching bookings for provider: ${user.id}');
+
+      final response = await Supabase.instance.client
+          .from('service_bookings')
+          .select()
+          .eq('provider_id', user.id)
+          .order('service_date', ascending: false);
+
+      print('Provider bookings response: $response');
+
+      if (response == null) {
+        print('Received null response from Supabase');
+        return [];
+      }
+
+      if (response is! List) {
+        print('Expected List but got: ${response.runtimeType}');
+        // Check if response is a Map with an error
+        if (response is Map) {
+          final map = response as Map;
+          if (map.containsKey('error')) {
+            throw Exception('Database error: ${map['error']}');
+          }
+        }
+        return [];
+      }
+
+      final bookings = response
+          .map<ServiceBooking>((json) => ServiceBooking.fromJson(json))
+          .toList();
+
+      print('Found ${bookings.length} provider bookings');
+      return bookings;
+    } catch (e) {
+      print('Error fetching provider bookings: $e');
+      throw Exception('Failed to load provider bookings: ${e.toString()}');
+    }
   }
 
   static Future<ServiceBooking> createBooking({
@@ -164,38 +289,67 @@ class ServiceBooking {
     required DateTime serviceDate,
     String? notes,
   }) async {
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser == null) {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
       throw Exception('User not logged in');
     }
 
-    // In a real implementation, this would be stored in Supabase
-    final newBooking = ServiceBooking(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      serviceId: service.id,
-      serviceName: service.title,
-      providerId: service.providerId,
-      providerName: service.providerName,
-      userId: currentUser.id,
-      userEmail: currentUser.email ?? 'unknown',
-      bookingDate: DateTime.now(),
-      serviceDate: serviceDate,
-      coinPrice: service.coinPrice,
-      status: BookingStatus.pending,
-      notes: notes,
-      isQuest: service.isQuest,
-    );
+    try {
+      print('Creating booking for service: ${service.id}');
 
-    // Here would be code to store the booking in Supabase
-    // Simulating network delay
-    await Future.delayed(const Duration(seconds: 1));
+      // Convert inProgress to in_progress for the database
+      final bookingData = {
+        'service_id': service.id,
+        'service_name': service.title,
+        'provider_id': service.providerId,
+        'provider_name': service.providerName,
+        'user_id': user.id,
+        'user_email': user.email ?? 'unknown',
+        'booking_date': DateTime.now().toIso8601String(),
+        'service_date': serviceDate.toIso8601String(),
+        'coin_price': service.coinPrice,
+        'status': 'pending',
+        'notes': notes,
+        'is_quest': service.isQuest,
+      };
 
-    return newBooking;
+      print('Booking data: $bookingData');
+
+      final response = await Supabase.instance.client
+          .from('service_bookings')
+          .insert(bookingData)
+          .select()
+          .single();
+
+      print('Booking created response: $response');
+
+      // The trigger in Supabase will automatically update user coins
+      return ServiceBooking.fromJson(response);
+    } catch (e) {
+      print('Error creating booking: $e');
+      throw Exception('Failed to create booking: ${e.toString()}');
+    }
   }
 
   Future<void> updateStatus(BookingStatus newStatus) async {
-    await Supabase.instance.client
-        .from('bookings')
-        .update({'status': newStatus.toString().split('.').last}).eq('id', id);
+    try {
+      // Convert inProgress to in_progress for the database
+      final String statusStr = newStatus == BookingStatus.inProgress
+          ? 'in_progress'
+          : newStatus.toString().split('.').last.toLowerCase();
+
+      print('Updating booking ${id} status to: $statusStr');
+
+      await Supabase.instance.client.from('service_bookings').update({
+        'status': statusStr,
+        'updated_at': DateTime.now().toIso8601String()
+      }).eq('id', id);
+
+      print('Booking status updated successfully');
+      // The trigger in Supabase will automatically handle coin transfers
+    } catch (e) {
+      print('Error updating booking status: $e');
+      throw Exception('Failed to update booking status: ${e.toString()}');
+    }
   }
 }

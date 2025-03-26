@@ -16,6 +16,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
   bool _isLoading = true;
   List<ServiceBooking> _bookings = [];
   String? _errorMessage;
+  bool _usingMockData = false;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _usingMockData = false;
     });
 
     try {
@@ -42,21 +44,22 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
         throw Exception('User not logged in');
       }
 
-      // Placeholder implementation since we don't have a real database yet
-      // In a real app, this would call ServiceBooking.getBookingsForUser
-      await Future.delayed(
-          const Duration(seconds: 1)); // Simulate network delay
-
-      // Create some mock bookings
-      _bookings = _createMockBookings();
+      // Load real bookings from Supabase
+      _bookings = await ServiceBooking.getBookingsForUser();
 
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error in booking history: ${e.toString()}');
+
+      // If we can't load real data, fall back to mock data
       setState(() {
+        _bookings = _createMockBookings();
         _isLoading = false;
-        _errorMessage = 'Failed to load bookings: ${e.toString()}';
+        _usingMockData = true;
+        _errorMessage =
+            'Using demo data: ${e.toString()}\n\nTo use real data, make sure your Supabase database is set up correctly.';
       });
     }
   }
@@ -154,6 +157,236 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
           booking.status == BookingStatus.rejected)
       .toList();
 
+  Future<void> _cancelBooking(ServiceBooking booking) async {
+    if (_usingMockData) {
+      setState(() {
+        _bookings = _bookings.map((b) {
+          if (b.id == booking.id) {
+            // Create a copy with cancelled status (since our mock objects are immutable)
+            return ServiceBooking(
+              id: b.id,
+              serviceId: b.serviceId,
+              serviceName: b.serviceName,
+              providerId: b.providerId,
+              providerName: b.providerName,
+              userId: b.userId,
+              userEmail: b.userEmail,
+              bookingDate: b.bookingDate,
+              serviceDate: b.serviceDate,
+              coinPrice: b.coinPrice,
+              status: BookingStatus.cancelled,
+              notes: b.notes,
+              isQuest: b.isQuest,
+            );
+          }
+          return b;
+        }).toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking cancelled successfully (mock mode)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    final bool confirm = await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Cancel Booking'),
+            content: Text(
+                'Are you sure you want to cancel your booking for "${booking.serviceName}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Yes, Cancel'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (confirm) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        await booking.updateStatus(BookingStatus.cancelled);
+        await _loadBookings(); // Reload to get updated list
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Booking cancelled successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to cancel booking: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _markAsInProgress(ServiceBooking booking) async {
+    if (_usingMockData) {
+      setState(() {
+        _bookings = _bookings.map((b) {
+          if (b.id == booking.id) {
+            // Create a copy with in progress status
+            return ServiceBooking(
+              id: b.id,
+              serviceId: b.serviceId,
+              serviceName: b.serviceName,
+              providerId: b.providerId,
+              providerName: b.providerName,
+              userId: b.userId,
+              userEmail: b.userEmail,
+              bookingDate: b.bookingDate,
+              serviceDate: b.serviceDate,
+              coinPrice: b.coinPrice,
+              status: BookingStatus.inProgress,
+              notes: b.notes,
+              isQuest: b.isQuest,
+            );
+          }
+          return b;
+        }).toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking marked as in progress (mock mode)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await booking.updateStatus(BookingStatus.inProgress);
+      await _loadBookings(); // Reload to get updated list
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking marked as in progress'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update booking: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _markAsCompleted(ServiceBooking booking) async {
+    if (_usingMockData) {
+      setState(() {
+        _bookings = _bookings.map((b) {
+          if (b.id == booking.id) {
+            // Create a copy with completed status
+            return ServiceBooking(
+              id: b.id,
+              serviceId: b.serviceId,
+              serviceName: b.serviceName,
+              providerId: b.providerId,
+              providerName: b.providerName,
+              userId: b.userId,
+              userEmail: b.userEmail,
+              bookingDate: b.bookingDate,
+              serviceDate: b.serviceDate,
+              coinPrice: b.coinPrice,
+              status: BookingStatus.completed,
+              notes: b.notes,
+              isQuest: b.isQuest,
+            );
+          }
+          return b;
+        }).toList();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Booking marked as completed (mock mode)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await booking.updateStatus(BookingStatus.completed);
+      await _loadBookings(); // Reload to get updated list
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking marked as completed'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update booking: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,38 +402,62 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadBookings,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
-              : _bookings.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No bookings found.\nStart by booking a service or joining a quest!',
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : TabBarView(
-                      controller: _tabController,
+          : Column(
+              children: [
+                if (_usingMockData)
+                  Container(
+                    color: Colors.amber[100],
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
                       children: [
-                        _buildBookingList(_activeBookings),
-                        _buildBookingList(_pastBookings),
+                        const Icon(Icons.info_outline, color: Colors.amber),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage ??
+                                'Using demo data. Database connection not available.',
+                            style: TextStyle(color: Colors.amber[800]),
+                          ),
+                        ),
                       ],
                     ),
+                  ),
+                Expanded(
+                  child: _errorMessage != null && !_usingMockData
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _errorMessage!,
+                                style: const TextStyle(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _loadBookings,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _bookings.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No bookings found.\nStart by booking a service or joining a quest!',
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : TabBarView(
+                              controller: _tabController,
+                              children: [
+                                _buildBookingList(_activeBookings),
+                                _buildBookingList(_pastBookings),
+                              ],
+                            ),
+                ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pop(context),
         child: const Icon(Icons.add),
@@ -257,7 +514,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
             ),
             child: Row(
               children: [
-                Icon(booking.status.icon, color: statusColor, size: 18),
+                Icon(booking.status.icon, color: statusColor, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   booking.status.displayName,
@@ -267,115 +524,78 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
+                Text(
+                  booking.isQuest ? 'Quest' : 'Service',
+                  style: TextStyle(
                     color: booking.isQuest ? Colors.blue : Colors.deepPurple,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    booking.isQuest ? 'QUEST' : 'SERVICE',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
           ),
-
-          // Content
+          // Booking details
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Service title and price
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        booking.serviceName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                    if (!booking.isQuest) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber[700],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.monetization_on,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${booking.coinPrice}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
+                Text(
+                  booking.serviceName,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-
                 const SizedBox(height: 8),
-
-                // Provider
                 Row(
                   children: [
-                    const Icon(Icons.business, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.person, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
                     Text(
                       booking.providerName,
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(color: Colors.grey[600]),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 8),
-
-                // Date information
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     const Icon(Icons.calendar_today,
                         size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Text(
-                      isUpcoming
-                          ? 'Scheduled for ${DateFormat('MMM d, yyyy').format(booking.serviceDate)}'
-                          : booking.status == BookingStatus.completed
-                              ? 'Completed on ${DateFormat('MMM d, yyyy').format(booking.serviceDate)}'
-                              : 'Was scheduled for ${DateFormat('MMM d, yyyy').format(booking.serviceDate)}',
-                      style: const TextStyle(fontSize: 14),
+                      DateFormat('EEEE, MMM d, yyyy • h:mm a')
+                          .format(booking.serviceDate),
+                      style: TextStyle(
+                        color: isUpcoming ? Colors.black : Colors.grey[600],
+                        fontWeight: isUpcoming ? FontWeight.bold : null,
+                      ),
                     ),
                   ],
                 ),
-
-                // Notes if any
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.monetization_on,
+                        size: 16, color: Colors.amber),
+                    const SizedBox(width: 4),
+                    Text(
+                      booking.isQuest
+                          ? 'Earn ${booking.coinPrice} coins'
+                          : '${booking.coinPrice} coins',
+                      style: TextStyle(
+                        color:
+                            booking.isQuest ? Colors.green : Colors.amber[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
                 if (booking.notes != null && booking.notes!.isNotEmpty) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.grey[100],
                       borderRadius: BorderRadius.circular(8),
@@ -383,15 +603,14 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.note, color: Colors.grey, size: 16),
-                        const SizedBox(width: 8),
+                        const Icon(Icons.note, size: 16, color: Colors.grey),
+                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             booking.notes!,
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[700],
-                              fontStyle: FontStyle.italic,
+                              color: Colors.grey[800],
+                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -402,76 +621,53 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
               ],
             ),
           ),
-
-          // Action buttons
+          // Actions
           if (booking.status == BookingStatus.pending ||
               booking.status == BookingStatus.confirmed)
             Padding(
-              padding: const EdgeInsets.all(16).copyWith(top: 0),
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, bottom: 16, top: 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () {
-                      // Implement cancel booking
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Booking cancelled'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    child: const Text('Cancel'),
-                    style: TextButton.styleFrom(
+                  OutlinedButton(
+                    onPressed: () => _cancelBooking(booking),
+                    style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
                     ),
+                    child: const Text('Cancel'),
                   ),
-                  if (booking.status == BookingStatus.confirmed) ...[
-                    const SizedBox(width: 8),
+                  const SizedBox(width: 8),
+                  if (booking.status == BookingStatus.confirmed &&
+                      isUpcoming &&
+                      booking.serviceDate.isBefore(
+                          DateTime.now().add(const Duration(days: 1))))
                     ElevatedButton(
-                      onPressed: () {
-                        // Implement reschedule
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Reschedule feature coming soon'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                      child: const Text('Reschedule'),
+                      onPressed: () => _markAsInProgress(booking),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                       ),
+                      child: const Text('Start'),
                     ),
-                  ],
                 ],
               ),
             ),
-
-          // For completed services, add review option
-          if (booking.status == BookingStatus.completed)
+          if (booking.status == BookingStatus.inProgress)
             Padding(
-              padding: const EdgeInsets.all(16).copyWith(top: 0),
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, bottom: 16, top: 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Implement review functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Review feature coming soon'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.star),
-                    label: const Text('Leave Review'),
+                  ElevatedButton(
+                    onPressed: () => _markAsCompleted(booking),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber[700],
+                      backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                     ),
+                    child: const Text('Complete'),
                   ),
                 ],
               ),
