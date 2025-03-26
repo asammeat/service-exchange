@@ -1,0 +1,35 @@
+# Flutter/Dart specific
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/pubspec.lock
+**/.packages
+**/.pub/
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/android/.gradle
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+
+# Node.js specific
+**/node_modules/
+**/npm-debug.log
+**/yarn-error.log
+**/package-lock.json
+**/.env
+
+# IDE specific
+**/.idea/
+**/.vscode/
+**/*.iml
+**/.DS_Store
+
+# Local development files
+**/local.properties
+**/.cursor/
+
+# Log files
+**/logs
+**/*.log 
