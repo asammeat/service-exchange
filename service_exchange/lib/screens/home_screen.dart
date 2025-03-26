@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'dart:async';
+import 'dart:math';
 import '../models/service_location.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
@@ -577,8 +578,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final formattedDate =
         date != null ? DateFormat.MMMd().format(date) : 'Flexible';
 
+    // Mock multiple images for the slider (in a real app, you'd have actual multiple images)
+    final List<String> mockImages = [
+      imageUrl,
+      'https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+      'https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
+    ];
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -626,8 +634,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -660,10 +668,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               organizationName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                fontSize: 15,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 2),
                             Row(
                               children: [
                                 const Icon(Icons.location_on,
@@ -681,98 +689,101 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
+                      // Service type badge moved to header for more prominence
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
+                          color: isQuest
+                              ? Colors.blue.withOpacity(0.1)
+                              : Colors.deepPurple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: isQuest ? Colors.blue : Colors.deepPurple,
+                            width: 1.5,
+                          ),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.star,
-                                size: 16, color: Colors.amber[700]),
-                            const SizedBox(width: 2),
+                            Icon(
+                              isQuest
+                                  ? Icons.volunteer_activism
+                                  : Icons.home_repair_service,
+                              size: 14,
+                              color: isQuest ? Colors.blue : Colors.deepPurple,
+                            ),
+                            const SizedBox(width: 4),
                             Text(
-                              rating.toString(),
+                              serviceType,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
+                                fontSize: 12,
+                                color:
+                                    isQuest ? Colors.blue : Colors.deepPurple,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.more_horiz, color: Colors.grey),
-                        onPressed: () {},
                       ),
                     ],
                   ),
                 ),
 
-                // Image
+                // Image slider with page indicator (Instagram-like)
                 Stack(
                   children: [
-                    AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                            ),
+                    SizedBox(
+                      height: 240, // Fixed height for consistent cards
+                      child: PageView.builder(
+                        itemCount: mockImages.length,
+                        itemBuilder: (context, index) {
+                          return Image.network(
+                            mockImages[index],
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 50,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
                     ),
+                    // Page indicator dots - Instagram style
                     Positioned(
-                      left: 16,
-                      top: 16,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isQuest
-                                ? [Colors.blue, Colors.blue.shade700]
-                                : [
-                                    Colors.deepPurple,
-                                    Colors.deepPurple.shade700
-                                  ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isQuest ? Colors.blue : Colors.deepPurple)
-                                  .withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                      bottom: 15,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          mockImages.length,
+                          (index) => Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: index == 0
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.5),
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          serviceType,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
                       ),
                     ),
+                    // Price tag
                     if (!isQuest)
                       Positioned(
                         right: 16,
@@ -819,6 +830,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
+                    // Date indicator
                     Positioned(
                       right: 16,
                       bottom: 16,
@@ -854,91 +866,130 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
 
-                // Card content (title, description, buttons)
+                // Card content and action buttons (Instagram-like)
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                      // Action buttons
+                      Row(
+                        children: [
+                          _buildActionButton(
+                            Icons.favorite_border,
+                            isRed: true,
+                          ),
+                          _buildActionButton(Icons.chat_bubble_outline),
+                          _buildActionButton(Icons.send),
+                          const Spacer(),
+                          _buildActionButton(Icons.bookmark_border),
+                        ],
+                      ),
+                      // Likes count
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 6),
+                        child: Text(
+                          '${Random().nextInt(100) + 10} likes',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      // Title and description
+                      RichText(
+                        text: TextSpan(
+                          style:
+                              const TextStyle(color: Colors.black, height: 1.3),
+                          children: [
+                            TextSpan(
+                              text: '$organizationName ',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            TextSpan(
+                              text: title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Text(
                         description,
                         style: TextStyle(
                           color: Colors.grey[700],
                           fontSize: 14,
-                          height: 1.4,
+                          height: 1.3,
                         ),
-                        maxLines: 3,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () {},
-                              icon: Icon(
-                                Icons.bookmark_border,
-                                color:
-                                    isQuest ? Colors.blue : Colors.deepPurple,
-                                size: 20,
-                              ),
-                              label: Text(
-                                'Save',
-                                style: TextStyle(
-                                  color:
-                                      isQuest ? Colors.blue : Colors.deepPurple,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                backgroundColor:
-                                    (isQuest ? Colors.blue : Colors.deepPurple)
-                                        .withOpacity(0.1),
-                              ),
-                            ),
+                      // View all comments link
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 8),
+                        child: Text(
+                          'View all ${Random().nextInt(20) + 3} comments',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextButton.icon(
-                              onPressed: () {},
-                              icon: Icon(
-                                Icons.share,
-                                color:
-                                    isQuest ? Colors.blue : Colors.deepPurple,
-                                size: 20,
+                        ),
+                      ),
+                      // Post time
+                      Text(
+                        date != null
+                            ? 'Posted ${date.difference(DateTime.now()).inDays.abs()} days ago'
+                            : 'Recently posted',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Call to action button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final serviceLocation =
+                                ServiceLocation.fromCardData(
+                              title: title,
+                              organization: organizationName,
+                              location: location,
+                              rating: rating,
+                              imageUrl: imageUrl,
+                              date: date,
+                              description: description,
+                              isQuest: isQuest,
+                              coinPrice: coinPrice,
+                            );
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ServiceDetailScreen(
+                                    serviceLocation: serviceLocation),
                               ),
-                              label: Text(
-                                'Share',
-                                style: TextStyle(
-                                  color:
-                                      isQuest ? Colors.blue : Colors.deepPurple,
-                                ),
-                              ),
-                              style: TextButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                backgroundColor:
-                                    (isQuest ? Colors.blue : Colors.deepPurple)
-                                        .withOpacity(0.1),
-                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isQuest ? Colors.blue : Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
+                            elevation: 0,
                           ),
-                        ],
+                          child: Text(isQuest ? 'Join Quest' : 'Book Service'),
+                        ),
                       ),
                     ],
                   ),
@@ -948,6 +999,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, {bool isRed = false}) {
+    return IconButton(
+      icon: Icon(
+        icon,
+        size: 24,
+        color: isRed ? Colors.red : Colors.black87,
+      ),
+      onPressed: () {},
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      constraints: const BoxConstraints(),
+      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -1505,6 +1570,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
+
         const SizedBox(height: 24),
       ],
     );
