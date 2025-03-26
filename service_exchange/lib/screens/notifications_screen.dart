@@ -25,6 +25,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Future<void> _loadNotifications() async {
     // Simulate loading from Supabase
     await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+
     setState(() {
       _notifications = [
         NotificationItem(
@@ -95,12 +97,29 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           IconButton(
             icon: const Icon(Icons.done_all, color: Colors.blue),
             onPressed: () {
-              // Mark all as read
               setState(() {
                 for (var notification in _notifications) {
                   notification.isRead = true;
                 }
               });
+              // Show confirmation snackbar with animation
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Text('All notifications marked as read'),
+                    ],
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                  animation: CurvedAnimation(
+                    parent: const AlwaysStoppedAnimation(1),
+                    curve: Curves.easeInOut,
+                  ),
+                ),
+              );
             },
             tooltip: 'Mark all as read',
           ),
@@ -133,7 +152,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              },
+            )
           : TabBarView(
               controller: _tabController,
               children: [
@@ -149,26 +179,44 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   Widget _buildNotificationsList(List<NotificationItem> notifications) {
     if (notifications.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.notifications_off_outlined,
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No notifications',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+      return TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 300),
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.8, end: 1.0),
+                    duration: const Duration(milliseconds: 300),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: Icon(
+                          Icons.notifications_off_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No notifications',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          );
+        },
       );
     }
 
@@ -178,7 +226,21 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         itemCount: notifications.length,
         itemBuilder: (context, index) {
           final notification = notifications[index];
-          return _buildNotificationCard(notification);
+          // Add stagger animation for list items
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: Duration(milliseconds: 300 + (index * 50)),
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: child,
+                ),
+              );
+            },
+            child: _buildNotificationCard(notification),
+          );
         },
       ),
     );
