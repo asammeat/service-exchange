@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/user_profile.dart';
 import 'booking_history_screen.dart';
+import 'profile_edit_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Function(int) onTabChange;
@@ -15,7 +17,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isLoading = false;
+  bool _isLoading = true;
+  UserProfile? _userProfile;
+  String _error = '';
   String _username = 'Alex Johnson';
   String _email = 'user@example.com';
   int _userCoins = 750;
@@ -32,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _refreshProfileData() async {
     setState(() {
       _isLoading = true;
+      _error = '';
     });
 
     await _loadUserData();
@@ -43,15 +48,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        setState(() {
-          _email = user.email ?? 'No email';
-          // In a real app, you would fetch the rest of the user data from Supabase
-        });
-      }
+      final profile = await UserProfile.fetchProfile();
+      setState(() {
+        _userProfile = profile;
+        _isLoading = false;
+      });
     } catch (e) {
-      debugPrint('Error loading user data: $e');
+      setState(() {
+        _error = 'Error loading profile: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _navigateToEditProfile() async {
+    if (_userProfile == null) return;
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileEditScreen(userProfile: _userProfile!),
+      ),
+    );
+
+    // If profile was updated, refresh the data
+    if (result == true) {
+      _refreshProfileData();
     }
   }
 
@@ -92,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       actions: [
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: () {},
+          onPressed: _navigateToEditProfile,
           tooltip: 'Edit Profile',
         ),
       ],
@@ -100,6 +122,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
+    if (_userProfile == null) {
+      return const Center(child: Text('No profile data available'));
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -109,9 +135,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               CircleAvatar(
                 radius: 40,
-                backgroundImage: NetworkImage(
-                  'https://i.pravatar.cc/300?u=${_email.hashCode}',
-                ),
+                backgroundImage: _userProfile?.avatarUrl != null
+                    ? NetworkImage(_userProfile!.avatarUrl!)
+                    : null,
+                child: _userProfile?.avatarUrl == null
+                    ? const Icon(Icons.person, size: 40)
+                    : null,
               ),
               const SizedBox(width: 20),
               Expanded(
@@ -119,14 +148,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _username,
+                      _userProfile?.username ?? 'Unknown User',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     Text(
-                      _email,
+                      _userProfile?.email ?? 'No email',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.grey[600],
@@ -139,7 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Colors.amber[700], size: 20),
                         const SizedBox(width: 4),
                         Text(
-                          '$_userCoins coins',
+                          '${_userProfile?.coins ?? 0} coins',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.amber[700],
@@ -207,6 +236,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAccountTypeToggle() {
+    if (_userProfile == null) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -230,14 +263,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _isPartnerAccount = false;
-                      });
+                      // This would be handled in the edit profile screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Change account type in Edit Profile'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: !_isPartnerAccount
+                        color: !(_userProfile?.isPartnerAccount ?? false)
                             ? Colors.blue
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
@@ -245,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         'User',
                         style: TextStyle(
-                          color: !_isPartnerAccount
+                          color: !(_userProfile?.isPartnerAccount ?? false)
                               ? Colors.white
                               : Colors.grey[800],
                           fontWeight: FontWeight.bold,
@@ -258,14 +295,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _isPartnerAccount = true;
-                      });
+                      // This would be handled in the edit profile screen
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Change account type in Edit Profile'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       decoration: BoxDecoration(
-                        color: _isPartnerAccount
+                        color: (_userProfile?.isPartnerAccount ?? false)
                             ? Colors.deepPurple
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
@@ -273,7 +314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         'Service Provider',
                         style: TextStyle(
-                          color: _isPartnerAccount
+                          color: (_userProfile?.isPartnerAccount ?? false)
                               ? Colors.white
                               : Colors.grey[800],
                           fontWeight: FontWeight.bold,
@@ -544,6 +585,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_error.isNotEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _error,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _refreshProfileData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshProfileData,
